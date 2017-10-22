@@ -33,8 +33,8 @@ def fetchvalue(nquads, object_uri, predicate='http://www.w3.org/2004/02/skos/cor
 	# check if it's a valid nquads
 	if '@default' in nquads:
 		for _nquad in nquads['@default']:
-			if _nquad['predicate']['value'] == predicate and object_uri in _nquad['object']['value']:
-				results.append(_nquad['object']['value'].split(object_uri)[1])
+			if object_uri in _nquad['object']['value']:
+				results.append((_nquad['object']['value'].split(object_uri)[1], _nquad['predicate']['value'].split('/')[-1]))
 	# if results is empty, it could be either nquads is empty or object_uri could not be found in nuqads
 	if results:
 		return list(set(results))
