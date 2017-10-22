@@ -37,10 +37,10 @@ class SmartAPIHandler:
     This function parse the openapi yml file, and organize info into endpoints and apis
     '''
     def parse_openapi(self):
-        api_list_url = 'https://raw.githubusercontent.com/NCATS-Tangerine/translator-api-registry/master/API_LIST.yml'
+        api_list_url = 'https://raw.githubusercontent.com/NCATS-Tangerine/translator-api-registry/kevin/API_LIST.yml'
         api_list = yaml.load(requests.get(api_list_url).content)['APIs']
         # path to fetch openapi yml file for each api
-        metadata_url_prefix = "https://raw.githubusercontent.com/NCATS-Tangerine/translator-api-registry/master/"
+        metadata_url_prefix = "https://raw.githubusercontent.com/NCATS-Tangerine/translator-api-registry/kevin/"
         for _api in api_list:
             openapi_url = metadata_url_prefix + _api['metadata']
             # check if the openapi file for the api exists first
@@ -97,7 +97,7 @@ class SmartAPIHandler:
     parse the uri_id mapping file, return a dict containing id mapping info indexed by uri
     '''
     def parse_id_mapping(self):
-        file_url = 'https://raw.githubusercontent.com/NCATS-Tangerine/translator-api-registry/master/ID_MAPPING.csv'
+        file_url = 'https://raw.githubusercontent.com/NCATS-Tangerine/translator-api-registry/kevin/ID_MAPPING.csv'
         data = pd.read_csv(file_url, encoding = "ISO-8859-1")
         for index, row in data.iterrows():
             self.bioentity_info[row['URI']] = {'registry_identifier': row[2], 'alternative_names': row[3], 'description': row[4], 'identifier_pattern': row[5], 'preferred_name': row[1], 'type': row[6]}
