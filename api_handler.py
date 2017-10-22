@@ -1,8 +1,10 @@
 import requests
+import json
 import yaml
 import pandas as pd
 import pprint
 from jsonld_processor import jsonld2nquads, fetchvalue
+from utils import int2str
 
 class SmartAPIHandler:
     def __init__(self):
@@ -12,6 +14,25 @@ class SmartAPIHandler:
         self.api_info = {}
         self.parse_id_mapping()
         self.parse_openapi()
+        self.relation = {}
+
+    def find_base(self, d, relation={}):
+        for k, v in d.items():
+            if isinstance(v, dict) and "@context" in v and "@base" in v["@context"]:
+                if v["@context"]["@base"] not in relation:
+                    relation[v["@context"]["@base"]] = [v["@id"]]
+                elif v["@context"]["@base"] in relation and v["@id"] not in relation[v["@context"]["@base"]]:
+                    relation[v["@context"]["@base"]].append(v["@id"])
+            elif isinstance(v, dict):
+                self.find_base(v,relation=relation)
+        return relation
+    '''
+    This function parse the jsonld file and return relation, output info
+    '''
+    def context2relation(self, context_url):
+        context = requests.get(context_url).json()
+        return self.find_base(context, relation={})
+
     '''
     This function parse the openapi yml file, and organize info into endpoints and apis
     '''
@@ -31,8 +52,13 @@ class SmartAPIHandler:
                 for _name, _info in data['paths'].items():
                     self.endpoint_info[data['servers'][0]['url'] + _name] = _info
                     _output = [_item['valueType'] for _item in _info['get']['responses']['200']['x-responseValueType']]
-                    self.endpoint_info[data['servers'][0]['url'] + _name].update({'output': _output})
-
+                    relation = {}
+                    if 'x-JSONLDContext' in _info['get']['responses']['200']:
+                        relation = self.context2relation(_info['get']['responses']['200']['x-JSONLDContext'])
+                    for _op in _output:
+                        if _op not in relation:
+                            relation[_op] = ['ont:is_related_to']
+                    self.endpoint_info[data['servers'][0]['url'] + _name].update({'output': _output, 'relation': relation})
                     self.api_info[data['info']['title']]['endpoints'].append(data['servers'][0]['url'] + _name)
             else:
                 print("invalid url for openapi: {}".format(openapi_url))
@@ -47,7 +73,7 @@ class SmartAPIHandler:
         for _para in self.endpoint_info[endpoint_name][method]['parameters']:
             # handle cases where input value is part of the url
             if _para['in'] == 'path':
-                data = requests.get(endpoint_name.replace(_para['name'], value))
+                data = requests.get(endpoint_name.replace('{' + _para['name'] + '}', value))
                 return data
             else:
                 # check whether the parameter is required
@@ -61,7 +87,6 @@ class SmartAPIHandler:
                                 results[_para['name']] = _template['template'].replace('{{input}}', value)
                     else:
                         results[_para['name']] = value
-        pprint.pprint(results)
         if type(value) != list:
             data = requests.get(endpoint_name, params=results)
         else:
@@ -101,6 +126,7 @@ class SmartAPIHandler:
     '''
     def call_api(self, input, value, endpoint, output):
         json_doc = self.api_call_constructor(input, value, endpoint).json()
+        int2str(json_doc)
         if endpoint.startswith('http://myvariant.info/'):
             if "_id" in json_doc:
                 json_doc["_id"] = json_doc["_id"].replace(':', '-')
